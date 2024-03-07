@@ -12,14 +12,66 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func main() {
-	ip := "192.168.1.93"
-	port := 9999
+var mg messages.MessageGenerator
 
-	mg := messages.MessageGenerator{
+func init() {
+	mg = messages.MessageGenerator{
 		Encrypter: xortransport.Encrypter{},
 	}
+}
 
+func main() {
+	// Create a UDP socket
+	addr, err := net.ResolveUDPAddr("udp", ":4444")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	msg := mg.GetInfo()
+	dec := xortransport.DecryptBytes(msg)
+	logrus.Infof("Sending string: %s", dec)
+	logrus.Infof("Sending bytes: % x", msg)
+	// Send a broadcast message
+	_, err = conn.WriteToUDP(msg, &net.UDPAddr{IP: net.IPv4bcast, Port: 9999})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	clientCh := make(chan string)
+	go func() {
+		for {
+			select {
+			case addr := <-clientCh:
+				logrus.Infof("Talking to %s", addr)
+				go flickerLight(addr, 9999)
+			}
+		}
+	}()
+
+	// Receive a broadcast message
+	buf := make([]byte, 4096)
+	for {
+		logrus.Info("Reading from udp...")
+		n, addr, err := conn.ReadFromUDP(buf)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fmt.Println("Received message from", addr)
+		fmt.Println(string(xortransport.DecryptBytes(append([]byte{0, 0, 0, 0}, buf[:n]...))))
+		clientCh <- fmt.Sprintf("%s", addr.IP)
+	}
+}
+
+func flickerLight(ip string, port int) {
 	// Create a UDP address.
 	dest := fmt.Sprintf("%s:%d", ip, port)
 	logrus.Infof("Talking to %s", dest)
@@ -39,32 +91,30 @@ func main() {
 
 	sendMessage(conn, mg.On())
 	for {
-		sendMessage(conn, mg.HSV(40, 40+rand.Intn(30), 40+rand.Intn(30)))
+		_, err := sendMessage(conn, mg.HSV(40, 40+rand.Intn(30), 40+rand.Intn(30)))
+		if err != nil {
+			logrus.Errorf("failed to send message: %v", err)
+		}
 		time.Sleep(200 * time.Millisecond)
 	}
-
-	fmt.Println("Message sent and response received!")
 }
 
-func sendMessage(conn *net.TCPConn, msg []byte) error {
-	dec, err := xortransport.DecryptBytes(msg)
-	logrus.Infof("Sending string: %s", dec)
-	logrus.Infof("Sending bytes: % x", msg)
+func sendMessage(conn *net.TCPConn, msg []byte) ([]byte, error) {
+	dec := xortransport.DecryptBytes(msg)
+	logrus.Debugf("Sending string: %s", dec)
+	logrus.Tracef("Sending bytes: % x", msg)
 	l, err := conn.Write(msg)
 	if err != nil {
-		return fmt.Errorf("Failed to write to conn: %w", err)
+		return nil, fmt.Errorf("Failed to write to conn: %w", err)
 	}
 
-	logrus.Infof("Wrote %d bytes", l)
+	logrus.Tracef("Wrote %d bytes", l)
 
 	// Read the response.
 	buf := make([]byte, 1024)
 	n, err := conn.Read(buf)
 	if err != nil && err != io.EOF {
-		return fmt.Errorf("Failed to read from conn: %w", err)
+		return nil, fmt.Errorf("Failed to read from conn: %w", err)
 	}
-
-	buf, _ = xortransport.DecryptBytes(buf[:n])
-	logrus.Infof("Read %d bytes: %s", n, buf)
-	return nil
+	return buf[:n], nil
 }

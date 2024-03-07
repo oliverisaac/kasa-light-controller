@@ -4,17 +4,17 @@ import "fmt"
 
 type Encrypter struct{}
 
-func (e Encrypter) EncryptBytes(b []byte) ([]byte, error) {
+func (e Encrypter) EncryptBytes(b []byte) []byte {
 	return EncryptBytes(b)
 }
 
 type Decrypter struct{}
 
-func (e Decrypter) EncryptBytes(b []byte) ([]byte, error) {
+func (e Decrypter) EncryptBytes(b []byte) []byte {
 	return DecryptBytes(b)
 }
 
-func EncryptBytes(b []byte) ([]byte, error) {
+func EncryptBytes(b []byte) []byte {
 	var xorBytes byte = 0xAB
 	output := make([]byte, len(b)+4)
 	output[0] = 0x0
@@ -25,12 +25,12 @@ func EncryptBytes(b []byte) ([]byte, error) {
 		output[i+4] = xorBytes ^ b
 		xorBytes = output[i+4]
 	}
-	return output, nil
+	return output
 }
 
-func DecryptBytes(b []byte) ([]byte, error) {
+func DecryptBytes(b []byte) []byte {
 	if len(b) == 0 {
-		return b, fmt.Errorf("No bytes to decrypt")
+		panic(fmt.Errorf("No bytes to decrypt"))
 	}
 	var xorBytes byte = 0xAB
 	output := make([]byte, len(b)-4)
@@ -38,5 +38,5 @@ func DecryptBytes(b []byte) ([]byte, error) {
 		output[i] = xorBytes ^ b
 		xorBytes = b
 	}
-	return output, nil
+	return output
 }

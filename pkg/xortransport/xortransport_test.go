@@ -26,11 +26,7 @@ func TestEncryptBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			inputBytes := []byte(tt.input)
-			got, err := EncryptBytes(inputBytes)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("EncryptBytes() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			got := EncryptBytes(inputBytes)
 			gotBytesAsString := fmt.Sprintf("%x", got)
 			if !reflect.DeepEqual(gotBytesAsString, tt.want) {
 				t.Errorf("EncryptBytes() = '%s', want '%v'", gotBytesAsString, tt.want)
@@ -60,11 +56,7 @@ func TestDecryptBytes(t *testing.T) {
 				panic(err)
 			}
 			logrus.Errorf("Bytes: % x", inputBytes)
-			got, err := DecryptBytes(inputBytes)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("DecryptBytes() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			got := DecryptBytes(inputBytes)
 			gotBytesAsString := string(got)
 			if !reflect.DeepEqual(gotBytesAsString, tt.want) {
 				t.Errorf("DecryptBytes() = '%s', want '%v'", gotBytesAsString, tt.want)
