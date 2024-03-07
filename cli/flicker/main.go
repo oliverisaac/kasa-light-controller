@@ -10,6 +10,7 @@ import (
 	"github.com/oliverisaac/kasa-light-controller/pkg/messages"
 	"github.com/oliverisaac/kasa-light-controller/pkg/xortransport"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 )
 
 var mg messages.MessageGenerator
@@ -21,6 +22,12 @@ func init() {
 }
 
 func main() {
+	hue := pflag.IntP("hue", "h", 45, "Hue of the flicker")
+	saturation := pflag.IntP("saturation", "s", 50, "Saturation of the flicker")
+	brightness := pflag.IntP("brightness", "b", 80, "brightness of the flicker")
+	variance := pflag.IntP("variance", "v", 10, "Variance of the flicker")
+	pflag.Parse()
+
 	// Create a UDP socket
 	addr, err := net.ResolveUDPAddr("udp", ":4444")
 	if err != nil {
@@ -50,7 +57,7 @@ func main() {
 			select {
 			case addr := <-clientCh:
 				logrus.Infof("Talking to %s", addr)
-				go flickerLight(addr, 9999)
+				go flickerLight(addr, 9999, *hue, *saturation, *brightness, *variance)
 			}
 		}
 	}()
@@ -71,7 +78,7 @@ func main() {
 	}
 }
 
-func flickerLight(ip string, port int) {
+func flickerLight(ip string, port int, hue int, saturation int, brightness int, variance int) {
 	// Create a UDP address.
 	dest := fmt.Sprintf("%s:%d", ip, port)
 	logrus.Infof("Talking to %s", dest)
@@ -91,7 +98,11 @@ func flickerLight(ip string, port int) {
 
 	sendMessage(conn, mg.On())
 	for {
-		_, err := sendMessage(conn, mg.HSV(40, 40+rand.Intn(30), 40+rand.Intn(30)))
+		_, err := sendMessage(conn, mg.HSV(
+			hue,
+			saturation-(variance/2)+rand.Intn(variance),
+			brightness-(variance/2)+rand.Intn(variance),
+		))
 		if err != nil {
 			logrus.Errorf("failed to send message: %v", err)
 		}

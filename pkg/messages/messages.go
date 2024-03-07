@@ -60,16 +60,21 @@ func (mg MessageGenerator) On() []byte {
 			}}})
 }
 
-func (mg MessageGenerator) HSV(hue, saturation, value int) []byte {
-	if hue > 360 || hue < 0 {
-		panic("Hue must be between 0 and 360")
+func capValue(val, min, max int) int {
+	if val < min {
+		return min
 	}
-	if saturation > 100 || saturation < 0 {
-		panic("Saturation must be between 0 and 100")
+	if val > max {
+		return max
 	}
-	if value > 100 || value < 0 {
-		panic("Value must be between 0 and 100")
-	}
+	return val
+}
+
+func (mg MessageGenerator) HSV(hue, saturation, brightness int) []byte {
+	hue = capValue(hue, 0, 360)
+	saturation = capValue(saturation, 0, 100)
+	brightness = capValue(brightness, 0, 100)
+
 	return mg.fromInterface(Message{
 		SmartlifeIotSmartbulbLightingservice: SmartlifeIotSmartbulbLightingservice{
 			TransitionLightState{
@@ -78,7 +83,7 @@ func (mg MessageGenerator) HSV(hue, saturation, value int) []byte {
 				Hue:              IntPtr(hue),
 				Saturation:       IntPtr(saturation),
 				ColorTemp:        IntPtr(0),
-				Brightness:       IntPtr(value),
+				Brightness:       IntPtr(brightness),
 				TransitionPeriod: IntPtr(100),
 			}}})
 }
